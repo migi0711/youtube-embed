@@ -12,7 +12,7 @@
 const params = new URLSearchParams(location.search);
 const v = params.get('v');
 if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) {
-    document.getElementById('player').src = 'https://www.youtube.com/embed/' + v + '?rel=0&autoplay=1';
+    document.getElementById('player').src = 'https://www.youtube.com/embed/' + v;
 }
 </script>
 </body>
