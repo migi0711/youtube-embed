@@ -3,17 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src https://www.youtube.com; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-<style>*{margin:0;padding:0}body{background:#000;overflow:hidden}iframe{width:100vw;height:100vh;border:none}</style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src https://www.youtube.com; style-src 'unsafe-inline'; script-src 'unsafe-inline' https://www.youtube.com">
+<style>*{margin:0;padding:0}body{background:#000;overflow:hidden}#player{width:100vw;height:100vh}</style>
 </head>
 <body>
-<iframe id="player" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+<div id="player"></div>
 <script>
-const params = new URLSearchParams(location.search);
-const v = params.get('v');
+// YouTube IFrame API を読み込み
+var tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+
+var ytPlayer = null;
+var videoId = null;
+
+var params = new URLSearchParams(location.search);
+var v = params.get('v');
 if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) {
-    document.getElementById('player').src = 'https://www.youtube.com/embed/' + v + '?autoplay=1';
+    videoId = v;
 }
+
+function onYouTubeIframeAPIReady() {
+    if (!videoId) return;
+    ytPlayer = new YT.Player('player', {
+        videoId: videoId,
+        playerVars: {
+            autoplay: 0,
+            rel: 0
+        },
+        events: {
+            onReady: function(e) {
+                // 現在の速度を親ウィンドウに通知
+                var rate = e.target.getPlaybackRate();
+                window.parent.postMessage({ type: 'yt-speed-current', speed: rate }, '*');
+            },
+            onPlaybackRateChange: function(e) {
+                window.parent.postMessage({ type: 'yt-speed-current', speed: e.data }, '*');
+            }
+        }
+    });
+}
+
+// 親ウィンドウからのメッセージを受信
+window.addEventListener('message', function(e) {
+    if (!ytPlayer || !ytPlayer.setPlaybackRate) return;
+    if (e.data && e.data.type === 'yt-set-speed') {
+        var speed = parseFloat(e.data.speed);
+        if (speed && speed > 0 && speed <= 16) {
+            ytPlayer.setPlaybackRate(speed);
+        }
+    }
+    if (e.data && e.data.type === 'yt-get-speed') {
+        var rate = ytPlayer.getPlaybackRate();
+        window.parent.postMessage({ type: 'yt-speed-current', speed: rate }, '*');
+    }
+});
 </script>
 </body>
 </html>
